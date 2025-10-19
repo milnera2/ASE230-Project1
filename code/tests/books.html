@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>REST API Testing - Book Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 { color: #333; text-align: center; }
+        h2 { color: #666; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .pass { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .fail { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .config {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 REST API Testing Tutorial (Book Management)</h1>
+        <p>This page demonstrates how to test the **Book Management API** using JavaScript. We'll test the `/books` endpoints with educational examples.</p>
+        
+        <div class="config">
+            <h3>⚙️ Configuration</h3>
+            <p><strong>API Base URL:</strong> <span id="baseUrl">http://localhost:8000</span></p>
+            <p><strong>Note:</strong> Make sure your PHP API server (`index.php`) is running on port 8000</p>
+            <input type="text" id="apiUrl" value="http://localhost:8000" placeholder="API Base URL">
+            <button onclick="updateBaseUrl()">Update URL</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🔍 Part 1: Basic Connection Tests</h2>
+        <p>First, let's test if our API server is running and responding correctly.</p>
+        
+        <div class="test-section">
+            <h3>Test 1.1: Server Connection (GET /)</h3>
+            <p>This test checks if we can connect to the API server's root endpoint.</p>
+            <button onclick="testServerConnection()">Run Test</button>
+            <div id="connection-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 1.2: API Root Endpoint (GET /)</h3>
+            <p>This test verifies that the root endpoint returns API information.</p>
+            <button onclick="testApiRoot()">Run Test</button>
+            <div id="api-root-result"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>✅ Part 2: Functional Tests (Book Endpoints)</h2>
+        <p>Now let's test if the API returns the data we expect for the `/books` resource.</p>
+
+        <div class="test-section">
+            <h3>Test 2.1: Get All Books</h3>
+            <p>Tests if **GET /books** returns the expected data structure.</p>
+            <button onclick="testGetAllBooks()">Run Test</button>
+            <div id="get-all-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 2.2: Get Single Book</h3>
+            <p>Tests if **GET /books/1** returns a specific book correctly.</p>
+            <button onclick="testGetSingleBook()">Run Test</button>
+            <div id="get-single-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 2.3: Create New Book</h3>
+            <p>Tests if **POST /books** creates a new book with correct data.</p>
+            <button onclick="testCreateBook()">Run Test</button>
+            <div id="create-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 2.4: Update Book</h3>
+            <p>Tests if **PUT /books/2** updates a book correctly.</p> 
+            <button onclick="testUpdateBook()">Run Test</button>
+            <div id="update-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 2.5: Delete Book</h3>
+            <p>Tests if **DELETE /books/3** removes a book correctly.</p>
+            <button onclick="testDeleteBook()">Run Test</button>
+            <div id="delete-result"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🚀 Run All Tests</h2>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <div id="all-tests-result"></div>
+    </div>
+
+    <script>
+        let API_BASE_URL = 'http://localhost:8000';
+
+        function updateBaseUrl() {
+            const newUrl = document.getElementById('apiUrl').value;
+            API_BASE_URL = newUrl;
+            document.getElementById('baseUrl').textContent = newUrl;
+            displayResult('connection-result', 'info', `Updated API base URL to: ${newUrl}`);
+        }
+
+        function displayResult(elementId, type, message, data = null) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `
+                <div class="test-result ${type}">
+                    <strong>${message}</strong>
+                    ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ''}
+                </div>
+            `;
+        }
+
+        async function makeRequest(url, method = 'GET', data = null) {
+            try {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                };
+
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+
+                const response = await fetch(url, options);
+                
+                let responseData;
+                try {
+                    responseData = await response.json();
+                } catch (e) {
+                    responseData = { 
+                        status: response.status,
+                        statusText: response.statusText,
+                        message: 'No JSON body or script execution error (check PHP logs/debugger)' 
+                    };
+                }
+
+                return {
+                    status: response.status,
+                    data: responseData,
+                    ok: response.ok
+                };
+            } catch (error) {
+                return {
+                    status: 0,
+                    error: error.message,
+                    ok: false
+                };
+            }
+        }
+
+        async function testServerConnection() {
+            displayResult('connection-result', 'info', 'Testing server connection...');
+            
+            const result = await makeRequest(API_BASE_URL);
+            
+            if (result.ok) {
+                displayResult('connection-result', 'pass', 
+                    `✅ PASS: Server is responding correctly! Status: ${result.status}`, result.data);
+            } else {
+                displayResult('connection-result', 'fail', 
+                    `❌ FAIL: Server connection failed. Status: ${result.status}`, 
+                    result.error ? { error: result.error } : result.data);
+            }
+        }
+
+        async function testApiRoot() {
+            displayResult('api-root-result', 'info', 'Testing API root endpoint...');
+            
+            const result = await makeRequest(API_BASE_URL);
+            
+            if (result.ok && result.data.message && result.data.endpoints) {
+                displayResult('api-root-result', 'pass', 
+                    '✅ PASS: API root returns expected structure!', result.data);
+            } else {
+                displayResult('api-root-result', 'fail', 
+                    '❌ FAIL: API root does not return expected structure', result.data);
+            }
+        }
+
+        async function testGetAllBooks() {
+            displayResult('get-all-result', 'info', 'Testing GET /books...');
+            
+            const result = await makeRequest(`${API_BASE_URL}/books`);
+            
+            if (result.ok && result.data.success && Array.isArray(result.data.data)) {
+                const books = result.data.data;
+                let testsPassed = 0;
+                let totalTests = 3;
+
+                if (result.data.success && result.data.data && typeof result.data.count === 'number') {
+                    testsPassed++;
+                }
+
+                if (books.length > 0) {
+                    const firstBook = books[0];
+                    if (firstBook.id && firstBook.name && firstBook.author && firstBook.genre) {
+                        testsPassed++;
+                    }
+                } else {
+                    testsPassed++;
+                }
+
+                if (result.data.count === books.length) {
+                    testsPassed++;
+                }
+
+                const message = testsPassed === totalTests ? 
+                    `✅ PASS: All tests passed (${testsPassed}/${totalTests})` :
+                    `⚠️ PARTIAL: ${testsPassed}/${totalTests} tests passed`;
+                
+                displayResult('get-all-result', testsPassed === totalTests ? 'pass' : 'fail', 
+                    message, result.data);
+            } else {
+                const failureMessage = result.status === 0 
+                    ? `❌ FAIL: Network Error/CORS Blocked (Status 0).`
+                    : `❌ FAIL: Status ${result.status}. Response structure unexpected or JSON parse error.`;
+
+                displayResult('get-all-result', 'fail', 
+                    failureMessage, result.data);
+            }
+        }
+
+        async function testGetSingleBook() {
+            displayResult('get-single-result', 'info', 'Testing GET /books/1...');
+            
+            const result = await makeRequest(`${API_BASE_URL}/books/1`);
+            
+            if (result.ok && result.data.success && result.data.data) {
+                const book = result.data.data;
+                let testsPassed = 0;
+                let totalTests = 4;
+
+                if (book.id && (typeof book.id === 'string' || typeof book.id === 'number')) testsPassed++;
+
+                if (book.name && typeof book.name === 'string' && book.author && typeof book.author === 'string') testsPassed++;
+
+                if (book.genre && (typeof book.year === 'string' || typeof book.year === 'number')) testsPassed++;
+
+                if (book.created_at && book.updated_at) testsPassed++;
+
+                const message = testsPassed === totalTests ? 
+                    `✅ PASS: All tests passed (${testsPassed}/${totalTests})` :
+                    `⚠️ PARTIAL: ${testsPassed}/${totalTests} tests passed`;
+                
+                displayResult('get-single-result', testsPassed === totalTests ? 'pass' : 'fail', 
+                    message, result.data);
+            } else {
+                displayResult('get-single-result', 'fail', 
+                    `❌ FAIL: Could not get book or unexpected response. Status: ${result.status}`, result.data);
+            }
+        }
+
+        async function testCreateBook() {
+            displayResult('create-result', 'info', 'Testing POST /books...');
+            
+            const newBook = {
+                name: 'The Lighthouse',
+                author: 'Anna Peterson',
+                genre: 'Mystery',
+                year: 2021
+            };
+
+            const result = await makeRequest(`${API_BASE_URL}/books`, 'POST', newBook);
+            
+            if (result.status === 201 && result.data.success && result.data.data) {
+                const createdBook = result.data.data;
+                let testsPassed = 0;
+                let totalTests = 6;
+
+                if (createdBook.id && createdBook.id > 0) testsPassed++;
+
+                if (createdBook.name === newBook.name) testsPassed++;
+
+                if (createdBook.author === newBook.author) testsPassed++;
+
+                if (createdBook.genre === newBook.genre) testsPassed++;
+
+                if (parseInt(createdBook.year) === newBook.year) testsPassed++;
+
+                if (createdBook.created_at && createdBook.updated_at) testsPassed++;
+
+                const message = testsPassed === totalTests ? 
+                    `✅ PASS: All tests passed (${testsPassed}/${totalTests}). New ID: ${createdBook.id}` :
+                    `⚠️ PARTIAL: ${testsPassed}/${totalTests} tests passed`;
+                
+                displayResult('create-result', testsPassed === totalTests ? 'pass' : 'fail', 
+                    message, result.data);
+            } else {
+                displayResult('create-result', 'fail', 
+                    `❌ FAIL: Could not create book. Status: ${result.status}`, result.data);
+            }
+        }
+
+        async function testUpdateBook() {
+            displayResult('update-result', 'info', 'Testing PUT /books/2...');
+            
+            const updateData = {
+                name: 'The Epic Adventure, Second Edition',
+                genre: 'Fantasy'
+            };
+
+            const result = await makeRequest(`${API_BASE_URL}/books/2`, 'PUT', updateData);
+            
+            if (result.ok && result.data.success && result.data.data) {
+                const updatedBook = result.data.data;
+                let testsPassed = 0;
+                let totalTests = 3;
+
+                if (updatedBook.name === updateData.name) testsPassed++;
+
+                if (updatedBook.genre === updateData.genre) testsPassed++;
+
+                if (updatedBook.updated_at !== updatedBook.created_at) testsPassed++;
+
+                const message = testsPassed === totalTests ? 
+                    `✅ PASS: All tests passed (${testsPassed}/${totalTests})` :
+                    `⚠️ PARTIAL: ${testsPassed}/${totalTests} tests passed`;
+                
+                displayResult('update-result', testsPassed === totalTests ? 'pass' : 'fail', 
+                    message, result.data);
+            } else {
+                displayResult('update-result', 'fail', 
+                    `❌ FAIL: Could not update book 2. Status: ${result.status}`, result.data);
+            }
+        }
+
+        async function testDeleteBook() {
+            displayResult('delete-result', 'info', 'Testing DELETE /books/3...');
+            
+            const result = await makeRequest(`${API_BASE_URL}/books/3`, 'DELETE');
+            
+            if (result.ok && result.data.success) {
+                const verifyResult = await makeRequest(`${API_BASE_URL}/books/3`);
+                
+                if (verifyResult.status === 404) {
+                    displayResult('delete-result', 'pass', 
+                        '✅ PASS: Book deleted successfully and verified!', result.data);
+                } else {
+                    displayResult('delete-result', 'fail', 
+                        `❌ FAIL: Book was successfully deleted but verification GET returned Status: ${verifyResult.status}`, verifyResult.data);
+                }
+            } else {
+                displayResult('delete-result', 'fail', 
+                    `❌ FAIL: Could not delete book 3. Status: ${result.status}`, result.data);
+            }
+        }
+
+        async function runAllTests() {
+            displayResult('all-tests-result', 'info', 'Running all tests...');
+            
+            const tests = [
+                { name: '1.1 Server Connection (GET /)', func: testServerConnection },
+                { name: '1.2 API Root (GET /)', func: testApiRoot },
+                { name: '2.1 Get All Books (GET /books)', func: testGetAllBooks },
+                { name: '2.2 Get Single Book (GET /books/1)', func: testGetSingleBook },
+                { name: '2.3 Create Book (POST /books)', func: testCreateBook },
+                { name: '2.4 Update Book (PUT /books/2)', func: testUpdateBook },
+                { name: '2.5 Delete Book (DELETE /books/3)', func: testDeleteBook }
+            ];
+
+            for (let i = 0; i < tests.length; i++) {
+                displayResult('all-tests-result', 'info', 
+                    `Running test ${i + 1}/${tests.length}: ${tests[i].name}...`);
+                await tests[i].func();
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            displayResult('all-tests-result', 'pass', 
+                '✅ All tests completed! Review individual sections for PASS/FAIL status.', null);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            displayResult('connection-result', 'info', 'Click "Run Test" to start testing the Book API...');
+        });
+    </script>
+</body>
+</html>
